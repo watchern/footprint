@@ -49,6 +49,20 @@ class AppDb {
     return _db!;
   }
 
+  /// 通用设置项读取（键值对）
+  static Future<String?> getSetting(String key) async {
+    final db = await _open();
+    final rows = await db.query('settings', where: 'key=?', whereArgs: [key]);
+    return rows.isEmpty ? null : rows.first['value'] as String;
+  }
+
+  /// 通用设置项写入
+  static Future<void> setSetting(String key, String value) async {
+    final db = await _open();
+    await db.insert('settings', {'key': key, 'value': value},
+        conflictAlgorithm: ConflictAlgorithm.replace);
+  }
+
   /// 「自动生成账号」：首次启动在本地生成一个 UUID 作为数据主键。
   /// 该 ID 只存在于设备数据库中，没有任何服务器交互。
   static Future<String> localId() async {

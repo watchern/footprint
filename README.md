@@ -1,17 +1,67 @@
-# local_footprints
+# 本地足迹（Local Footprints）
 
-A new Flutter project.
+复刻「灵敢足迹」核心功能的**完全本地化**安卓应用。无注册、无登录、无云端、无好友共享，所有数据只存在设备本地。
 
-## Getting Started
+## 功能
 
-This project is a starting point for a Flutter application.
+- **我的足迹**：地图上按出行方式着色显示全部历史轨迹，支持一键全览
+- **运动记录**：步行 / 跑步 / 骑行 / 驾车，实时统计距离、时长、均速、最高速
+- **时间轴**：按天分组的出行历史，点击查看单次轨迹详情与回放
+- **我的**：累计里程/时长/次数/天数、本地账号 ID、隐私说明
+- **底图与离线地图**：底图源可插拔切换、自定义镜像地址、导入 MBTiles 离线包
 
-A few resources to get you started if this is your first Flutter project:
+## 隐私设计
 
-- [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)
-- [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Flutter learning resources](https://docs.flutter.dev/reference/learning-resources)
+| 数据 | 存储位置 | 是否联网 |
+|---|---|---|
+| 轨迹点 / 运动记录 | 本地 SQLite（`footprints.db`） | 否 |
+| 本地账号 ID | 本地 SQLite（UUID 自动生成） | 否 |
+| 收藏 / 设置 / 离线包索引 | 本地 SQLite | 否 |
+| 照片、位置信息 | 不采集 | 否 |
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+应用**没有注册、没有登录、没有服务器、没有云端备份、没有好友/社区功能**。卸载应用或清除数据将永久删除全部足迹。
+
+地图底图仅用于渲染显示瓦片，请求中不包含任何个人信息。
+
+## 坐标系设计（重要）
+
+轨迹在数据库中**始终以 GPS 原始坐标 WGS-84 保存**，坐标转换只发生在渲染层：
+
+- 高德 / 腾讯地图使用 **GCJ-02**（国测局加密坐标）→ 渲染时做 WGS-84 → GCJ-02 纠偏
+- 天地图 / OSM 使用 **WGS-84** → 直接使用原始坐标
+
+因此切换底图源**不会造成轨迹偏移**，也无需迁移任何历史数据。
+
+## 底图源
+
+所有源统一使用 XYZ 瓦片协议（`{z}/{x}/{y}`），这也是 OSM 的事实标准，天地图、高德、腾讯均可映射到该协议，便于未来替换为任意合规源。
+
+内置源：
+
+| 源 | 坐标系 | Key | 说明 |
+|---|---|---|---|
+| 高德矢量 | GCJ-02 | 不需要 | 默认，国内直连流畅 |
+| 高德卫星影像 | GCJ-02 | 不需要 | 卫星图 + 路网标注 |
+| 天地图 | WGS-84 | 需要 | 需自行到天地图开放平台申请 |
+| OpenStreetMap | WGS-84 | 不需要 | 国内访问不稳定，建议改用镜像 |
+
+**自定义镜像**：在「底图与离线地图」中可填写任意 XYZ 模板，例如
+`https://tile.openstreetmap.de/{z}/{x}/{y}.png`。
+
+**离线地图包**：支持导入标准 `.mbtiles` 文件（MBTiles 规范），断网也能查看底图。离线包可从地图下载工具或镜像站点获取。
+
+## 构建
+
+```bash
+flutter pub get
+flutter test              # 单元测试：坐标纠偏、距离计算、瓦片行号翻转
+flutter build apk --release
+```
+
+产物：`build/app/outputs/flutter-apk/app-release.apk`
+
+GitHub Actions（`.github/workflows/build-apk.yml`）会在每次 push 后自动运行测试并构建 APK，产物可在 Actions 页面的 Artifacts 中下载。
+
+## 技术栈
+
+Flutter · sqflite · flutter_map · geolocator · file_picker · provider

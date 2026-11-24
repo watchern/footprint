@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:provider/provider.dart';
 
 import '../core/db.dart';
+import '../core/map_settings.dart';
+import 'map_settings_page.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -32,6 +35,15 @@ class _ProfilePageState extends State<ProfilePage> {
 
   String _mask(String id) =>
       id.length <= 12 ? id : '${id.substring(0, 8)}••••••${id.substring(id.length - 4)}';
+
+  String _sourceLabel() {
+    final s = context.watch<MapSettings>();
+    if (s.offlineMode) {
+      return '离线包 ${s.activeOffline!.name}';
+    }
+    final name = s.source.name;
+    return s.usingCustomTemplate ? '$name（自定义镜像）' : name;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -82,6 +94,22 @@ class _ProfilePageState extends State<ProfilePage> {
                           const SnackBar(content: Text('完整 ID 已复制到剪贴板')));
                     }
                   },
+          ),
+        ),
+        const SizedBox(height: 16),
+        Card(
+          elevation: 0,
+          shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+              side: BorderSide(color: Theme.of(context).dividerColor.withValues(alpha: 0.3))),
+          child: ListTile(
+            leading: const Icon(Icons.layers_outlined),
+            title: const Text('底图与离线地图', style: TextStyle(fontWeight: FontWeight.w500)),
+            subtitle: Text('当前：${_sourceLabel()}',
+                style: const TextStyle(fontSize: 12)),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => Navigator.push(context,
+                MaterialPageRoute(builder: (_) => const MapSettingsPage())),
           ),
         ),
         const SizedBox(height: 16),

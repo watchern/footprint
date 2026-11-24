@@ -1,28 +1,21 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:provider/provider.dart';
 
 import '../core/db.dart';
+import '../core/map_settings.dart';
+import '../core/mbtiles.dart';
 import '../core/models.dart';
-import '../core/geo.dart';
+import '../core/tile_source.dart';
 import '../core/tracker.dart';
+import 'map_settings_page.dart';
 
-/// 高德合规在线底图（GCJ-02），无需 API Key
-final TileLayer amapTiles = TileLayer(
-  urlTemplate:
-      'https://webrd0{s}.is.autonavi.com/appmaptile?lang=zh_cn&size=1&scale=1&style=8&x={x}&y={y}&z={z}',
-  subdomains: const ['1', '2', '3', '4'],
-  userAgentPackageName: 'local.local_footprints',
-);
-
-List<LatLng> toGcj(List<TrackPoint> pts) => pts
-    .map((p) => wgs84ToGcj02(p.lat, p.lng))
+/// 依据坐标系统一转换：数据库存 WGS-84，渲染时按底图坐标系换算
+List<LatLng> toDisplay(List<TrackPoint> pts, CoordSystem sys) => pts
+    .map((p) => sys.fromWgs84(p.lat, p.lng))
     .map((c) => LatLng(c[0], c[1]))
     .toList();
-
 class MapPage extends StatefulWidget {
   const MapPage({super.key});
 
@@ -34,11 +27,18 @@ class _MapPageState extends State<MapPage> {
   List<Session> _sessions = [];
   Map<int, List<TrackPoint>> _points = {};
   final MapController _mapController = MapController();
+  MbTilesReader? _offlineReader;
 
   @override
   void initState() {
     super.initState();
     _load();
+  }
+
+  @override
+  void dispose() {
+    _offlineReader?.close();
+    super.dispose();
   }
 
   Future<void> _load() async {
@@ -55,22 +55,26 @@ class _MapPageState extends State<MapPage> {
   }
 
   void _fitAll() {
+    final sys = context.read<MapSettings>().coordSystem;
     final all = <LatLng>[];
     for (final s in _sessions) {
-      all.addAll(toGcj(_points[s.id!] ?? []));
+      all.addAll(toDisplay(_points[s.id!] ?? [], sys));
     }
     if (all.isEmpty) return;
     final bounds = LatLngBounds.fromPoints(all);
-    _mapController.fitCamera(CameraFit.bounds(bounds: bounds, padding: const EdgeInsets.all(48)));
+    _mapController.fitCamera(
+        CameraFit.bounds(bounds: bounds, padding: const EdgeInsets.all(48)));
   }
 
   @override
   Widget build(BuildContext context) {
     final tracker = context.watch<Tracker>();
+    final settings = context.watch<MapSettings>();
+    final sys = settings.coordSystem;
 
     final polylines = <Polyline>[];
     for (final s in _sessions) {
-      final pts = toGcj(_points[s.id!] ?? []);
+      final pts = toDisplay(_points[s.id!] ?? [], sys);
       if (pts.length < 2) continue;
       polylines.add(Polyline(
         points: pts,
@@ -102,26 +106,80 @@ class _MapPageState extends State<MapPage> {
       ));
     }
 
+    // 底图：离线包优先，否则在线源
+    final offline = settings.activeOffline;
+    final TileLayer baseLayer;
+    if (offline != null) {
+      _offlineReader ??= MbTilesReader(offline.path);
+      baseLayer = TileLayer(
+        key: ValueKey('offline-${offline.id}'),
+        tileProvider: MbTilesProvider(
+          reader: _offlineReader!,
+          minZoom: offline.minZoom,
+          maxZoom: offline.maxZoom,
+        ),
+        userAgentPackageName: 'local.local_footprints',
+        maxNativeZoom: 19,
+      );
+    } else {
+      baseLayer = settings.effectiveSource.toTileLayer(
+        template: settings.effectiveUrlTemplate,
+        keyValue: settings.tiandituKey,
+      );
+    }
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('我的足迹'),
         actions: [
-          IconButton(icon: const Icon(Icons.fit_screen), tooltip: '全览所有轨迹', onPressed: _fitAll),
-          IconButton(icon: const Icon(Icons.refresh), tooltip: '刷新', onPressed: _load),
+          IconButton(
+              icon: const Icon(Icons.fit_screen),
+              tooltip: '全览所有轨迹',
+              onPressed: _fitAll),
+          IconButton(
+            icon: const Icon(Icons.layers_outlined),
+            tooltip: '底图与离线地图',
+            onPressed: () async {
+              await Navigator.push(context,
+                  MaterialPageRoute(builder: (_) => const MapSettingsPage()));
+              if (mounted) _load();
+            },
+          ),
+          IconButton(
+              icon: const Icon(Icons.refresh), tooltip: '刷新', onPressed: _load),
         ],
       ),
-      body: FlutterMap(
-        mapController: _mapController,
-        options: MapOptions(
-          initialCenter: center ?? const LatLng(39.909, 116.397),
-          initialZoom: center == null ? 4 : 14,
+      body: Stack(children: [
+        FlutterMap(
+          mapController: _mapController,
+          options: MapOptions(
+            initialCenter: center ?? const LatLng(39.909, 116.397),
+            initialZoom: center == null ? 4 : 14,
+          ),
+          children: [
+            baseLayer,
+            PolylineLayer(polylines: polylines),
+            MarkerLayer(markers: markers),
+          ],
         ),
-        children: [
-          amapTiles,
-          PolylineLayer(polylines: polylines),
-          MarkerLayer(markers: markers),
-        ],
-      ),
+        Positioned(
+          left: 0,
+          right: 0,
+          bottom: 0,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+            color: Colors.black.withValues(alpha: 0.35),
+            child: Text(
+              offline != null
+                  ? '离线包：${offline.name} · ${offline.sizeLabel}'
+                  : '${settings.effectiveSource.attribution}'
+                      '${settings.usingCustomTemplate ? ' · 自定义镜像' : ''}',
+              style: const TextStyle(fontSize: 10, color: Colors.white),
+              textAlign: TextAlign.center,
+            ),
+          ),
+        ),
+      ]),
     );
   }
 }
