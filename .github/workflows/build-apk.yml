@@ -22,6 +22,8 @@ jobs:
 
       - uses: subosito/flutter-action@v2
         with:
+          # 锁定 Flutter 版本，避免 stable 通道自动升级导致 CI 与本地不一致
+          flutter-version: '3.47.6'
           channel: stable
           cache: true
 
