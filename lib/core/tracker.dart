@@ -11,6 +11,8 @@ import 'models.dart';
 enum TrackState { idle, recording }
 
 /// 运动记录控制器：GPS 采集 → 本地计算距离/速度 → 停止时一次性写入 SQLite。
+///
+/// 位置数据来自全局唯一的 [LocationProvider]，本控制器只负责采样与落库。
 /// 无任何网络上传。
 class Tracker extends ChangeNotifier {
   TrackState state = TrackState.idle;
@@ -20,8 +22,8 @@ class Tracker extends ChangeNotifier {
   double distance = 0;
   double maxSpeed = 0;
 
-  /// 最新一个点（GCJ-02，用于地图上跟随显示），null 表示暂无定位
-  List<double>? currentGcj;
+  /// 最新一个点（WGS-84 原始坐标）。坐标系转换由渲染层按底图源决定，此处不做纠偏。
+  List<double>? currentWgs;
   double? currentSpeed;
 
   StreamSubscription<Position>? _sub;
@@ -31,18 +33,8 @@ class Tracker extends ChangeNotifier {
 
   double get avgSpeed => elapsedSeconds > 0 ? distance / elapsedSeconds : 0;
 
+  /// 开始记录。位置由 [LocationProvider] 的全局流提供。
   Future<bool> start(String t) async {
-    bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
-    if (!serviceEnabled) return false;
-    LocationPermission perm = await Geolocator.checkPermission();
-    if (perm == LocationPermission.denied) {
-      perm = await Geolocator.requestPermission();
-    }
-    if (perm == LocationPermission.denied ||
-        perm == LocationPermission.deniedForever) {
-      return false;
-    }
-
     type = t;
     startTime = DateTime.now();
     points.clear();
@@ -50,19 +42,23 @@ class Tracker extends ChangeNotifier {
     maxSpeed = 0;
     state = TrackState.recording;
     await WakelockPlus.enable();
-
-    _sub = Geolocator.getPositionStream(
-      locationSettings: const LocationSettings(
-        accuracy: LocationAccuracy.bestForNavigation,
-        distanceFilter: 3,
-      ),
-    ).listen(_onPosition, onError: (_) {});
-
     notifyListeners();
     return true;
   }
 
+  /// 绑定位置流
+  void attachLocationStream(Stream<Position> stream) {
+    _sub?.cancel();
+    _sub = stream.listen(_onPosition, onError: (_) {});
+  }
+
+  void detachLocationStream() {
+    _sub?.cancel();
+    _sub = null;
+  }
+
   void _onPosition(Position p) {
+    if (state != TrackState.recording) return;
     final speed = (p.speed.isNaN || p.speed < 0) ? 0.0 : p.speed;
     if (p.latitude.isNaN || p.longitude.isNaN) return;
     final pt = TrackPoint(
@@ -81,23 +77,24 @@ class Tracker extends ChangeNotifier {
     }
     points.add(pt);
     if (speed > maxSpeed) maxSpeed = speed;
-    currentGcj = wgs84ToGcj02(pt.lat, pt.lng);
+    currentWgs = [pt.lat, pt.lng];
     currentSpeed = speed;
     notifyListeners();
   }
 
   /// 停止并落库。返回保存后的 Session；点数不足时返回 null。
   Future<Session?> stop() async {
-    await _sub?.cancel();
-    _sub = null;
+    detachLocationStream();
     await WakelockPlus.disable();
     state = TrackState.idle;
     final t = type ?? 'walk';
     final start = startTime;
     final pts = List<TrackPoint>.from(points);
+    final dist = distance;
+    final maxSp = maxSpeed;
     type = null;
     startTime = null;
-    currentGcj = null;
+    currentWgs = null;
     currentSpeed = null;
     points.clear();
     notifyListeners();
@@ -110,10 +107,10 @@ class Tracker extends ChangeNotifier {
       type: t,
       startedAt: start.millisecondsSinceEpoch,
       endedAt: ended.millisecondsSinceEpoch,
-      distance: distance,
+      distance: dist,
       duration: dur,
-      maxSpeed: maxSpeed,
-      avgSpeed: distance / dur,
+      maxSpeed: maxSp,
+      avgSpeed: dist / dur,
       pointCount: pts.length,
     );
     final saved = await AppDb.insertSession(s, pts);
@@ -125,13 +122,12 @@ class Tracker extends ChangeNotifier {
 
   /// 放弃本次记录（不落库）
   Future<void> discard() async {
-    await _sub?.cancel();
-    _sub = null;
+    detachLocationStream();
     await WakelockPlus.disable();
     state = TrackState.idle;
     type = null;
     startTime = null;
-    currentGcj = null;
+    currentWgs = null;
     currentSpeed = null;
     points.clear();
     distance = 0;

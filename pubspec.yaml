@@ -45,6 +45,7 @@ dependencies:
   path: ^1.9.1
   uuid: ^4.6.0
   file_picker: ^13.4.1
+  flutter_compass: ^0.8.1
 
 dev_dependencies:
   flutter_test:

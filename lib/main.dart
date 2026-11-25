@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import 'core/db.dart';
+import 'core/location_provider.dart';
 import 'core/map_settings.dart';
 import 'core/tracker.dart';
 import 'pages/history_page.dart';
@@ -23,6 +24,7 @@ class LocalFootprintsApp extends StatelessWidget {
     return MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => Tracker()),
+        ChangeNotifierProvider(create: (_) => LocationProvider()),
         ChangeNotifierProvider(create: (_) => MapSettings()..load()),
       ],
       child: MaterialApp(

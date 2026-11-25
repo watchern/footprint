@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../core/location_provider.dart';
 import '../core/models.dart';
 import '../core/tracker.dart';
 
@@ -35,13 +36,18 @@ class _RecordPageState extends State<RecordPage> {
 
   Future<void> _start() async {
     final tracker = context.read<Tracker>();
-    final ok = await tracker.start(_selected);
+    final loc = context.read<LocationProvider>();
+    // 启动全局位置流并订阅
+    final ok = await loc.start();
     if (!mounted) return;
     if (!ok) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
           content: Text('无法开始记录：请检查定位权限是否授予、系统定位服务是否开启')));
       return;
     }
+    await tracker.start(_selected);
+    tracker.attachLocationStream(loc.positionStream);
+    if (!mounted) return;
     _timer = Timer.periodic(const Duration(seconds: 1), (_) {
       if (mounted && context.read<Tracker>().state == TrackState.recording) {
         setState(() {});
