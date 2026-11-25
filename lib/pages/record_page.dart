@@ -37,8 +37,8 @@ class _RecordPageState extends State<RecordPage> {
   Future<void> _start() async {
     final tracker = context.read<Tracker>();
     final loc = context.read<LocationProvider>();
-    // 启动全局位置流并订阅
-    final ok = await loc.start();
+    // 启动全局位置流并订阅（此处按需请求定位权限）
+    final ok = await loc.start(requestIfNeeded: true);
     if (!mounted) return;
     if (!ok) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(

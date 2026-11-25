@@ -48,7 +48,8 @@ class _MapPageState extends State<MapPage> {
   void initState() {
     super.initState();
     _load();
-    // 启动全局定位（地图与记录共用同一位置流）
+    // 若用户此前已授予定位权限，则静默开启持续定位（显示当前位置方向标）。
+    // 未授权时不主动弹窗，仅在点击「定位」或「开始记录」时请求。
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) context.read<LocationProvider>().start();
     });
@@ -127,9 +128,9 @@ class _MapPageState extends State<MapPage> {
       return;
     }
 
-    // 开始：确保位置流已启动并订阅
+    // 开始：确保位置流已启动并订阅（此处按需请求定位权限）
     final loc = context.read<LocationProvider>();
-    final ok = await loc.start();
+    final ok = await loc.start(requestIfNeeded: true);
     if (!mounted) return;
     if (!ok) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(

@@ -50,7 +50,17 @@ class LocationProvider extends ChangeNotifier {
   StreamSubscription<CompassEvent>? _compassSub;
   bool _permissionGranted = false;
 
-  /// 确保定位权限已授予
+  /// 检查定位权限是否已授予（不触发授权弹窗）
+  Future<bool> hasPermission() async {
+    if (_permissionGranted) return true;
+    if (!await Geolocator.isLocationServiceEnabled()) return false;
+    final perm = await Geolocator.checkPermission();
+    _permissionGranted = perm == LocationPermission.always ||
+        perm == LocationPermission.whileInUse;
+    return _permissionGranted;
+  }
+
+  /// 请求定位权限（用户主动操作时调用）
   Future<bool> ensurePermission() async {
     if (_permissionGranted) return true;
     if (!await Geolocator.isLocationServiceEnabled()) return false;
@@ -66,10 +76,12 @@ class LocationProvider extends ChangeNotifier {
     return true;
   }
 
-  /// 开始持续定位
-  Future<bool> start() async {
+  /// 开始持续定位。若权限未授予则不弹窗，直接返回 false（由调用方决定是否请求）。
+  Future<bool> start({bool requestIfNeeded = false}) async {
     if (_posSub != null) return true;
-    if (!await ensurePermission()) return false;
+    final allowed =
+        requestIfNeeded ? await ensurePermission() : await hasPermission();
+    if (!allowed) return false;
 
     _posSub = Geolocator.getPositionStream(
       locationSettings: const LocationSettings(
@@ -111,7 +123,7 @@ class LocationProvider extends ChangeNotifier {
     _compassSub = null;
   }
 
-  /// 立即获取一次当前位置（用于「定位到当前位置」按钮）
+  /// 立即获取一次当前位置（用于「定位到当前位置」按钮）。会按需请求权限。
   Future<Position?> refreshOnce() async {
     if (!await ensurePermission()) return null;
     try {
