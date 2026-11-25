@@ -1,5 +1,21 @@
 import 'dart:math' as math;
 
+/// 判断一个定位时间戳是否足够「新鲜」。
+///
+/// Android 定位服务会优先下发系统缓存的「最后已知位置」，
+/// 这个位置可能是几分钟甚至更久之前的，直接使用会导致地图跳到错误位置。
+///
+/// [timestampMs] 为定位时间戳（epoch 毫秒），[maxAgeMs] 为允许的最大年龄。
+bool isPositionFresh(
+  int timestampMs, {
+  int maxAgeMs = 15000,
+  int? nowMs,
+}) {
+  final now = nowMs ?? DateTime.now().millisecondsSinceEpoch;
+  final age = now - timestampMs;
+  return age <= maxAgeMs;
+}
+
 /// 两点间球面距离（米），输入 WGS-84 坐标
 double haversine(double lat1, double lng1, double lat2, double lng2) {
   const r = 6371000.0;

@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:provider/provider.dart';
 
+import '../core/app_nav.dart';
 import '../core/db.dart';
 import '../core/models.dart';
+import '../core/tracker.dart';
 import 'session_detail.dart';
 
 class HistoryPage extends StatefulWidget {
@@ -15,10 +18,28 @@ class HistoryPage extends StatefulWidget {
 class _HistoryPageState extends State<HistoryPage> {
   List<Session>? _sessions;
 
+  /// 上次触发刷新的数据标记（标签页 + 记录版本号）
+  String? _stamp;
+
   @override
   void initState() {
     super.initState();
     _load();
+  }
+
+  /// 数据可能已变化时重新加载。
+  ///
+  /// 本页位于 IndexedStack 中会常驻不销毁，initState 只执行一次，
+  /// 因此必须监听「切回本页」与「保存了新记录」两个信号。
+  void _maybeReload() {
+    final navIndex = context.select<AppNav, int>((n) => n.index);
+    final revision = context.select<Tracker, int>((t) => t.revision);
+    final stamp = '$navIndex-$revision';
+    if (stamp == _stamp) return;
+    _stamp = stamp;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _load();
+    });
   }
 
   Future<void> _load() async {
@@ -34,6 +55,7 @@ class _HistoryPageState extends State<HistoryPage> {
 
   @override
   Widget build(BuildContext context) {
+    _maybeReload();
     final sessions = _sessions;
     return Scaffold(
       appBar: AppBar(title: const Text('时间轴')),

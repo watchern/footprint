@@ -5,6 +5,7 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:provider/provider.dart';
 
+import '../core/app_nav.dart';
 import '../core/db.dart';
 import '../core/location_provider.dart';
 import '../core/map_settings.dart';
@@ -44,6 +45,9 @@ class _MapPageState extends State<MapPage> {
   /// 计时器：刷新记录中的时长
   Timer? _timer;
 
+  /// 上次触发刷新的数据标记（标签页 + 记录版本号）
+  String? _stamp;
+
   @override
   void initState() {
     super.initState();
@@ -52,6 +56,18 @@ class _MapPageState extends State<MapPage> {
     // 未授权时不主动弹窗，仅在点击「定位」或「开始记录」时请求。
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) context.read<LocationProvider>().start();
+    });
+  }
+
+  /// 切回本页或新增记录时刷新轨迹数据
+  void _maybeReload() {
+    final navIndex = context.select<AppNav, int>((n) => n.index);
+    final revision = context.select<Tracker, int>((t) => t.revision);
+    final stamp = '$navIndex-$revision';
+    if (stamp == _stamp) return;
+    _stamp = stamp;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _load();
     });
   }
 
@@ -91,13 +107,16 @@ class _MapPageState extends State<MapPage> {
   Future<void> _locateMe() async {
     setState(() => _locating = true);
     final loc = context.read<LocationProvider>();
-    final p = await loc.refreshOnce();
+    // 先确保定位流在跑，等待新点时才有数据可等
+    await loc.start(requestIfNeeded: true);
+    // 取可靠坐标：拒绝系统缓存的「最后已知位置」
+    final p = await loc.acquireReliable();
     if (!mounted) return;
     setState(() => _locating = false);
 
     if (p == null) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('定位失败，请检查定位权限与系统定位服务')));
+          content: Text('定位失败：未能获取到新的定位，请到室外或开启系统定位服务后重试')));
       return;
     }
 
@@ -107,6 +126,15 @@ class _MapPageState extends State<MapPage> {
     // 缩放级别：使比例尺读数恰好为 500 米
     final zoom = zoomForScaleMetric(500, disp[0], kScaleBarMaxWidth);
     _mapController.move(target, zoom);
+
+    // 精度过差时给出可操作的提示（Android 12+ 可能是「大致位置」授权）
+    final acc = p.accuracy;
+    if (acc > 30) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          duration: const Duration(seconds: 5),
+          content: Text('当前定位精度约 ${acc.round()} 米，'
+              '如偏差较大请检查系统设置中是否已授予「精确位置」权限')));
+    }
   }
 
   /// 开始 / 停止记录
@@ -149,6 +177,7 @@ class _MapPageState extends State<MapPage> {
 
   @override
   Widget build(BuildContext context) {
+    _maybeReload();
     final tracker = context.watch<Tracker>();
     final settings = context.watch<MapSettings>();
     final location = context.watch<LocationProvider>();

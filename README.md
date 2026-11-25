@@ -2,6 +2,8 @@
 
 复刻「灵敢足迹」核心功能的**完全本地化**安卓应用。无注册、无登录、无云端、无好友共享，所有数据只存在设备本地。
 
+当前版本：**v1.0.1**（更新日志见 [CHANGELOG.md](CHANGELOG.md)）
+
 ## 功能
 
 - **我的足迹**：地图上按出行方式着色显示全部历史轨迹，支持一键全览
@@ -77,15 +79,26 @@
 
 ## 构建
 
+> 本项目**不在本地构建**，统一由 GitHub Actions 构建并发布。
+
 ```bash
 flutter pub get
-flutter test              # 单元测试：坐标纠偏、距离计算、瓦片行号翻转
-flutter build apk --release
+flutter test              # 单元测试：坐标纠偏、距离计算、瓦片行号翻转、定位新鲜度
 ```
 
-产物：`build/app/outputs/flutter-apk/app-release.apk`
+推送 `main` 后 CI 自动运行测试并构建 APK，产物在 Actions 的 Artifacts 中；
+推送 `v*` 标签则额外创建 GitHub Release 并附带 APK：
 
-GitHub Actions（`.github/workflows/build-apk.yml`）会在每次 push 后自动运行测试并构建 APK，产物可在 Actions 页面的 Artifacts 中下载。
+```bash
+git tag v1.0.1 && git push origin v1.0.1
+```
+
+Release 地址：https://github.com/watchern/footprint/releases
+
+## 版本号约定
+
+每次改动递增版本号（`pubspec.yaml` 的 `version: x.y.z+build`）：
+功能修复/小改进 → 补丁号（1.0.1 → 1.0.2），新增功能 → 次版本号（1.0.2 → 1.1.0）。
 
 ## 技术栈
 

@@ -28,6 +28,12 @@ class Tracker extends ChangeNotifier {
 
   StreamSubscription<Position>? _sub;
 
+  /// 每次成功保存一条记录后 +1，供时间轴页等监听数据变化
+  int _revision = 0;
+
+  /// 数据版本号（保存新记录后递增）
+  int get revision => _revision;
+
   int get elapsedSeconds =>
       startTime == null ? 0 : DateTime.now().difference(startTime!).inSeconds;
 
@@ -116,6 +122,7 @@ class Tracker extends ChangeNotifier {
     final saved = await AppDb.insertSession(s, pts);
     distance = 0;
     maxSpeed = 0;
+    _revision++;
     notifyListeners();
     return saved;
   }

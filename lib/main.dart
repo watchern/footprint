@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import 'core/app_nav.dart';
 import 'core/db.dart';
 import 'core/location_provider.dart';
 import 'core/map_settings.dart';
@@ -26,6 +27,7 @@ class LocalFootprintsApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => Tracker()),
         ChangeNotifierProvider(create: (_) => LocationProvider()),
         ChangeNotifierProvider(create: (_) => MapSettings()..load()),
+        ChangeNotifierProvider(create: (_) => AppNav()),
       ],
       child: MaterialApp(
         title: '本地足迹',
@@ -48,18 +50,17 @@ class HomeShell extends StatefulWidget {
 }
 
 class _HomeShellState extends State<HomeShell> {
-  int _index = 0;
-
   @override
   Widget build(BuildContext context) {
+    final nav = context.watch<AppNav>();
     return Scaffold(
       body: IndexedStack(
-        index: _index,
+        index: nav.index,
         children: const [MapPage(), RecordPage(), HistoryPage(), ProfilePage()],
       ),
       bottomNavigationBar: NavigationBar(
-        selectedIndex: _index,
-        onDestinationSelected: (i) => setState(() => _index = i),
+        selectedIndex: nav.index,
+        onDestinationSelected: nav.goTo,
         destinations: const [
           NavigationDestination(icon: Icon(Icons.map_outlined), selectedIcon: Icon(Icons.map), label: '足迹'),
           NavigationDestination(icon: Icon(Icons.play_circle_outline), selectedIcon: Icon(Icons.play_circle), label: '记录'),

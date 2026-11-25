@@ -13,6 +13,8 @@ import 'geo.dart';
 /// 2. **朝向双来源**：优先使用罗盘（设备朝向，静止时依然有效），
 ///    无罗盘时回退到 GPS 航向（course over ground，移动时有效）。
 /// 3. **单一订阅**：地图与运动记录共用同一条位置流，避免重复唤醒 GPS。
+/// 4. **新鲜度校验**：Android 定位服务会优先下发系统缓存的「最后已知位置」，
+///    取定位时必须校验时间戳，过旧的定位一律丢弃，否则地图会跳到旧位置。
 class LocationProvider extends ChangeNotifier {
   /// 最新位置（WGS-84 原始坐标）
   Position? position;
@@ -38,6 +40,21 @@ class LocationProvider extends ChangeNotifier {
     final g = courseHeading;
     if (g != null && g > 0) return g;
     return null;
+  }
+
+  /// 当前定位的年龄（秒），null 表示无定位
+  int? get positionAgeSeconds {
+    final p = position;
+    if (p == null) return null;
+    final age =
+        DateTime.now().millisecondsSinceEpoch - p.timestamp.millisecondsSinceEpoch;
+    return age < 0 ? 0 : (age / 1000).round();
+  }
+
+  /// 定位是否新鲜（年龄在容忍范围内）
+  bool isFresh([int maxAgeSeconds = 15]) {
+    final age = positionAgeSeconds;
+    return age != null && age <= maxAgeSeconds;
   }
 
   final StreamController<Position> _controller =
@@ -123,8 +140,16 @@ class LocationProvider extends ChangeNotifier {
     _compassSub = null;
   }
 
-  /// 立即获取一次当前位置（用于「定位到当前位置」按钮）。会按需请求权限。
-  Future<Position?> refreshOnce() async {
+  /// 判断一个定位是否足够新（毫秒）
+  bool _isFreshAt(Position p, int maxAgeMs) =>
+      isPositionFresh(p.timestamp.millisecondsSinceEpoch, maxAgeMs: maxAgeMs);
+
+  /// 立即获取一次当前位置。
+  ///
+  /// 注意：Android 的 `getCurrentPosition` 返回 provider 首次下发的位置，
+  /// 该位置可能是系统缓存的「最后已知位置」（可能来自几分钟前）。
+  /// 因此这里强制校验时间戳，过旧的定位直接判为无效（返回 null）。
+  Future<Position?> refreshOnce({int maxAgeMs = 15000}) async {
     if (!await ensurePermission()) return null;
     try {
       final p = await Geolocator.getCurrentPosition(
@@ -133,6 +158,7 @@ class LocationProvider extends ChangeNotifier {
           timeLimit: Duration(seconds: 10),
         ),
       );
+      if (!_isFreshAt(p, maxAgeMs)) return null; // 缓存旧定位，丢弃
       position = p;
       _controller.add(p);
       notifyListeners();
@@ -140,6 +166,45 @@ class LocationProvider extends ChangeNotifier {
     } catch (_) {
       return null;
     }
+  }
+
+  /// 等待一个新鲜定位（来自持续定位流）。
+  ///
+  /// 用于「一次性取位返回了缓存旧定位」的场景：改从实时流中等待新点。
+  Future<Position?> waitForFresh({
+    Duration timeout = const Duration(seconds: 10),
+    int maxAgeMs = 10000,
+  }) {
+    final completer = Completer<Position?>();
+    StreamSubscription<Position>? sub;
+    Timer? timer;
+
+    void finish(Position? p) {
+      if (!completer.isCompleted) completer.complete(p);
+      sub?.cancel();
+      timer?.cancel();
+    }
+
+    sub = _controller.stream.listen((p) {
+      if (_isFreshAt(p, maxAgeMs)) finish(p);
+    });
+    timer = Timer(timeout, () => finish(null));
+    return completer.future;
+  }
+
+  /// 获取用于「定位到当前位置」的可靠坐标。
+  ///
+  /// 策略：优先使用持续流中最新的新鲜定位；没有则主动取一次；
+  /// 若取到的是缓存旧定位，则改为等待实时流下发新点。
+  Future<Position?> acquireReliable({int maxAgeMs = 15000}) async {
+    final p = position;
+    if (p != null && _isFreshAt(p, maxAgeMs)) return p;
+
+    final one = await refreshOnce(maxAgeMs: maxAgeMs);
+    if (one != null) return one;
+
+    // 一次性取位拿到的是缓存旧定位 → 等待实时流的新点
+    return waitForFresh(maxAgeMs: maxAgeMs);
   }
 
   /// 按给定坐标系返回当前点（渲染层使用）
