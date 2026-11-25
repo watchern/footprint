@@ -1,4 +1,8 @@
 pluginManagement {
+    // CI 环境（GitHub Actions）位于境外，使用官方仓库更稳定；
+    // 本地开发在国内，优先走阿里云镜像以保证速度。
+    val isCI = System.getenv("CI") != null
+
     val flutterSdkPath =
         run {
             val properties = java.util.Properties()
@@ -11,9 +15,11 @@ pluginManagement {
     includeBuild("$flutterSdkPath/packages/flutter_tools/gradle")
 
     repositories {
-        maven("https://maven.aliyun.com/repository/google")
-        maven("https://maven.aliyun.com/repository/central")
-        maven("https://maven.aliyun.com/repository/gradle-plugin")
+        if (!isCI) {
+            maven("https://maven.aliyun.com/repository/google")
+            maven("https://maven.aliyun.com/repository/central")
+            maven("https://maven.aliyun.com/repository/gradle-plugin")
+        }
         google()
         mavenCentral()
         gradlePluginPortal()
@@ -21,9 +27,12 @@ pluginManagement {
 }
 
 dependencyResolutionManagement {
+    val isCI = System.getenv("CI") != null
     repositories {
-        maven("https://maven.aliyun.com/repository/google")
-        maven("https://maven.aliyun.com/repository/central")
+        if (!isCI) {
+            maven("https://maven.aliyun.com/repository/google")
+            maven("https://maven.aliyun.com/repository/central")
+        }
         google()
         mavenCentral()
     }
