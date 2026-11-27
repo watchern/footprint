@@ -1,5 +1,14 @@
 # 更新日志
 
+## v1.1.1
+
+### 修复
+
+- **发布资产中文名丢失**：`softprops/action-gh-release` 对中文文件路径的 glob 处理会吃掉中文前缀，
+  资产名变成 `-v1.1.0.apk`。改用 `gh CLI` 并以「源文件#资产名」语法上传，资产名正确显示为 `本地足迹-v1.1.1.apk`。
+- **Release 关联残留**：重复删推 tag 导致 GitHub 把 Release 与 tag 的关联清理掉；
+  发布步骤改为「先 create 失败则 upload」并输出诊断 annotation。
+
 ## v1.1.0
 
 ### 新增
