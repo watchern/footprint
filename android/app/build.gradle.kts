@@ -9,6 +9,17 @@ android {
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
+    // 固定 release 签名：CI 每次构建必须用同一个 keystore，
+    // 否则用户更新安装时会因签名变化被系统拒绝（提示签名不一致、需卸载旧版）。
+    signingConfigs {
+        create("release") {
+            storeFile = file("release.jks")
+            storePassword = "footprints2026"
+            keyAlias = "footprints"
+            keyPassword = "footprints2026"
+        }
+    }
+
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
@@ -31,9 +42,8 @@ android {
 
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig = signingConfigs.getByName("debug")
+            // 使用固定签名而非 debug（debug 签名在 CI 每次全新 runner 上都会变化）
+            signingConfig = signingConfigs.getByName("release")
         }
     }
 }

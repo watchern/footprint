@@ -52,11 +52,24 @@ class _MapPageState extends State<MapPage> {
   void initState() {
     super.initState();
     _load();
-    // 若用户此前已授予定位权限，则静默开启持续定位（显示当前位置方向标）。
-    // 未授权时不主动弹窗，仅在点击「定位」或「开始记录」时请求。
+    // 启动后自动定位到当前位置：仅当权限已授予时静默执行（不主动弹窗）。
+    // 首次安装未授权时不强弹，待用户点「定位」/「开始记录」授权后，后续启动即可自动定位。
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) context.read<LocationProvider>().start();
+      if (mounted) _autoLocateOnStart();
     });
+  }
+
+  /// 启动自动定位：保持默认 2km 比例尺，只把地图中心移到当前位置
+  Future<void> _autoLocateOnStart() async {
+    final loc = context.read<LocationProvider>();
+    // 已授权才启动定位流；未授权不弹窗（尊重按需授权约定）
+    final started = await loc.start();
+    if (!started || !mounted) return;
+    await _moveToCurrent(
+      targetScaleMeters: 2000,
+      requestPermission: false,
+      silent: true,
+    );
   }
 
   /// 切回本页或新增记录时刷新轨迹数据
@@ -105,31 +118,49 @@ class _MapPageState extends State<MapPage> {
 
   /// 定位到当前位置，并把比例尺缩放到 500 米
   Future<void> _locateMe() async {
-    setState(() => _locating = true);
+    await _moveToCurrent(
+      targetScaleMeters: 500,
+      requestPermission: true,
+      silent: false,
+    );
+  }
+
+  /// 把地图移到当前位置，比例尺缩放到 [targetScaleMeters] 对应的读数。
+  ///
+  /// [requestPermission] 为 true 时会按需申请权限（用户主动点击定位）；
+  /// [silent] 为 true 时不显示 loading 与失败提示（启动自动定位用）。
+  Future<void> _moveToCurrent({
+    required double targetScaleMeters,
+    required bool requestPermission,
+    required bool silent,
+  }) async {
+    if (!silent) setState(() => _locating = true);
     final loc = context.read<LocationProvider>();
     // 先确保定位流在跑，等待新点时才有数据可等
-    await loc.start(requestIfNeeded: true);
+    await loc.start(requestIfNeeded: requestPermission);
     // 取可靠坐标：拒绝系统缓存的「最后已知位置」
     final p = await loc.acquireReliable();
     if (!mounted) return;
-    setState(() => _locating = false);
+    if (!silent) setState(() => _locating = false);
 
     if (p == null) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('定位失败：未能获取到新的定位，请到室外或开启系统定位服务后重试')));
+      if (!silent) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content:
+                Text('定位失败：未能获取到新的定位，请到室外或开启系统定位服务后重试')));
+      }
       return;
     }
 
     final sys = context.read<MapSettings>().coordSystem;
     final disp = sys.fromWgs84(p.latitude, p.longitude);
     final target = LatLng(disp[0], disp[1]);
-    // 缩放级别：使比例尺读数恰好为 500 米
-    final zoom = zoomForScaleMetric(500, disp[0], kScaleBarMaxWidth);
+    final zoom = zoomForScaleMetric(targetScaleMeters, disp[0], kScaleBarMaxWidth);
     _mapController.move(target, zoom);
 
     // 精度过差时给出可操作的提示（Android 12+ 可能是「大致位置」授权）
     final acc = p.accuracy;
-    if (acc > 30) {
+    if (!silent && acc > 30) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
           duration: const Duration(seconds: 5),
           content: Text('当前定位精度约 ${acc.round()} 米，'

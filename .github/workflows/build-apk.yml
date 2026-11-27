@@ -41,10 +41,20 @@ jobs:
       - name: Run unit tests
         run: flutter test
 
+      - name: Read version from pubspec.yaml
+        id: version
+        run: |
+          VERSION=$(grep -E '^version:' pubspec.yaml | sed -E 's/^version:[[:space:]]*([0-9]+\.[0-9]+\.[0-9]+).*/\1/')
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "App version: $VERSION"
+
       - name: Build release APK
         run: |
           set -o pipefail
           flutter build apk --release 2>&1 | tee build.log
+          # 产物重命名为带版本号的文件名，便于用户识别与管理
+          cp build/app/outputs/flutter-apk/app-release.apk \
+             "build/app/outputs/flutter-apk/本地足迹-v${{ steps.version.outputs.version }}.apk"
 
       - name: Report failure details
         if: failure()
@@ -65,8 +75,8 @@ jobs:
         if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: footprints-release-apk
-          path: build/app/outputs/flutter-apk/app-release.apk
+          name: 本地足迹-v${{ steps.version.outputs.version }}
+          path: build/app/outputs/flutter-apk/本地足迹-v${{ steps.version.outputs.version }}.apk
 
       - name: Upload build log
         if: failure()
@@ -79,7 +89,7 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
-          files: build/app/outputs/flutter-apk/app-release.apk
+          files: build/app/outputs/flutter-apk/本地足迹-v${{ steps.version.outputs.version }}.apk
           name: 本地足迹 ${{ github.ref_name }}
           body: |
             安卓 APK 自动发布。
