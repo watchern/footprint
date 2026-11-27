@@ -12,3 +12,7 @@ GeneratedPluginRegistrant.java
 key.properties
 **/*.keystore
 **/*.jks
+
+# 例外：本项目的固定 release 签名需随仓库分发，保证 CI 每次构建签名一致，
+# 否则用户更新安装时会因签名变化被系统拒绝。该 App 完全本地化、无云端服务。
+!app/release.jks
