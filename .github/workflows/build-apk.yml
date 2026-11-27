@@ -87,13 +87,33 @@ jobs:
 
       - name: Publish GitHub Release
         if: startsWith(github.ref, 'refs/tags/v')
-        uses: softprops/action-gh-release@v2
-        with:
-          files: build/app/outputs/flutter-apk/本地足迹-v${{ steps.version.outputs.version }}.apk
-          name: 本地足迹 ${{ github.ref_name }}
-          body: |
-            安卓 APK 自动发布。
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ steps.version.outputs.version }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -e
+          SRC="build/app/outputs/flutter-apk/app-release.apk"
+          ASSET="本地足迹-v${VERSION}.apk"
 
-            - 所有数据仅存本地设备，无注册、无云端、无好友共享
-            - 轨迹坐标以 WGS-84 存储，渲染时按底图坐标系换算
-            - 底图源可插拔，支持 OSM 镜像与 MBTiles 离线包
+          # 清理旧的错误命名资产（中文被 glob 吃掉后残留的 -v*.apk）
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release view "$TAG" --json assets --jq '.assets[].name' \
+              | grep -E '^-v.*\.apk$' | while IFS= read -r old; do
+                  gh release delete-asset "$TAG" "$old" --yes
+                done || true
+          fi
+
+          NOTES="安卓 APK 自动发布。
+
+          - 所有数据仅存本地设备，无注册、无云端、无好友共享
+          - 轨迹坐标以 WGS-84 存储，渲染时按底图坐标系换算
+          - 底图源可插拔，支持 OSM 镜像与 MBTiles 离线包"
+
+          # 用 源文件#资产名 语法指定中文资产名，避免 glob 处理中文路径丢字符
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" "${SRC}#${ASSET}" --clobber
+          else
+            gh release create "$TAG" "${SRC}#${ASSET}" \
+              --title "本地足迹 $TAG" --notes "$NOTES"
+          fi
