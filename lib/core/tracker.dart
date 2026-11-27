@@ -34,6 +34,12 @@ class Tracker extends ChangeNotifier {
   /// 数据版本号（保存新记录后递增）
   int get revision => _revision;
 
+  /// 通知外部数据已变化（例如记录被保存/删除），供页面监听刷新
+  void markDataChanged() {
+    _revision++;
+    notifyListeners();
+  }
+
   int get elapsedSeconds =>
       startTime == null ? 0 : DateTime.now().difference(startTime!).inSeconds;
 

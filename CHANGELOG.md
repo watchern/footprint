@@ -1,5 +1,21 @@
 # 更新日志
 
+## v1.0.2
+
+### 修复
+
+- **时间轴看不到任何记录**：列表项构建时调用 `DateFormat('yyyy年M月d日 EEEE', 'zh_CN')`，
+  而 `intl` 的中文日期数据需要先调用 `initializeDateFormatting('zh_CN')` 才会初始化，
+  未初始化时直接抛 `LocaleDataException`，导致每一条记录都渲染不出来。
+  现在改用自实现的 `formatChineseDay`（不依赖 locale 数据），
+  同时在 `main()` 中补充 `initializeDateFormatting('zh_CN')` 作为兜底。
+- **停止按钮图标不居中**：`FilledButton.icon` 搭配空的 `label` 会让图标偏左，
+  改为普通 `FilledButton` + 单一图标子组件，并固定圆形尺寸。
+
+### 调整
+
+- 进入应用后的默认比例尺由约 500 米改为 **2 公里**（按当前纬度反解缩放级别）。
+
 ## v1.0.1
 
 ### 修复

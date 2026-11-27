@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:intl/date_symbol_data_local.dart';
 import 'package:provider/provider.dart';
 
 import 'core/app_nav.dart';
@@ -13,6 +14,12 @@ import 'pages/record_page.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // 初始化 intl 中文日期数据（DateFormat 使用 zh_CN 等非默认 locale 时必须先初始化）
+  try {
+    await initializeDateFormatting('zh_CN');
+  } catch (_) {
+    // 忽略：应用内的日期格式化已改为不依赖 locale 的实现
+  }
   await AppDb.localId(); // 首次启动自动生成本地账号
   runApp(const LocalFootprintsApp());
 }

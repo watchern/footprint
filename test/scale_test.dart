@@ -82,4 +82,22 @@ void main() {
       expect(formatScaleMetric(5000), '5 km');
     });
   });
+
+  group('默认视图比例尺（2 公里）', () {
+    test('进入应用时的默认缩放使比例尺读数为 2 km', () {
+      for (final lat in [0.0, 23.1, 39.909, 45.8, 60.0]) {
+        final zoom = zoomForScaleMetric(2000, lat, kScaleBarMaxWidth);
+        final mpp = metersPerPixel(zoom, lat);
+        final metric = pickScaleMetric(mpp, kScaleBarMaxWidth);
+        expect(metric, 2000, reason: '纬度 $lat 时应显示 2 km，实际 $metric');
+        expect(formatScaleMetric(metric), '2 km');
+      }
+    });
+
+    test('默认缩放级别落在合理区间', () {
+      final zoom = zoomForScaleMetric(2000, 39.909, kScaleBarMaxWidth);
+      expect(zoom, greaterThan(8));
+      expect(zoom, lessThan(18));
+    });
+  });
 }

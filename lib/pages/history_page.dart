@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
 import '../core/app_nav.dart';
+import '../core/date_text.dart';
 import '../core/db.dart';
 import '../core/models.dart';
 import '../core/tracker.dart';
@@ -70,8 +70,8 @@ class _HistoryPageState extends State<HistoryPage> {
                     itemCount: sessions.length,
                     itemBuilder: (context, i) {
                       final s = sessions[i];
-                      final day = DateFormat('yyyy年M月d日 EEEE', 'zh_CN')
-                          .format(DateTime.fromMillisecondsSinceEpoch(s.startedAt));
+                      final day = formatChineseDay(
+                          DateTime.fromMillisecondsSinceEpoch(s.startedAt));
                       final showDay = i == 0 ||
                           !_sameDay(sessions[i - 1].startedAt, s.startedAt);
                       return Column(
@@ -116,8 +116,8 @@ class _HistoryPageState extends State<HistoryPage> {
                                           fontSize: 16, fontWeight: FontWeight.w500)),
                                 ]),
                                 subtitle: Text(
-                                  '${DateFormat('HH:mm').format(DateTime.fromMillisecondsSinceEpoch(s.startedAt))}'
-                                  '${s.endedAt != null ? ' – ${DateFormat('HH:mm').format(DateTime.fromMillisecondsSinceEpoch(s.endedAt!))}' : ''}'
+                                  '${formatClockTime(DateTime.fromMillisecondsSinceEpoch(s.startedAt))}'
+                                  '${s.endedAt != null ? ' – ${formatClockTime(DateTime.fromMillisecondsSinceEpoch(s.endedAt!))}' : ''}'
                                   ' · ${_fmtDur(s.duration)} · 均速 ${kmh(s.avgSpeed).toStringAsFixed(1)} km/h',
                                 ),
                                 onTap: () async {

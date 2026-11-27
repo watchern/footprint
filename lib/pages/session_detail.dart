@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
-import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
+import '../core/date_text.dart';
 import '../core/db.dart';
 import '../core/map_settings.dart';
 import '../core/models.dart';
@@ -56,7 +56,7 @@ class _SessionDetailState extends State<SessionDetail> {
     final gcj = toDisplay(_points, sys);
     final color = Color(typeColors[s.type] ?? 0xFF185FA5);
     final start = DateTime.fromMillisecondsSinceEpoch(s.startedAt);
-    final startStr = DateFormat('yyyy-MM-dd HH:mm').format(start);
+    final startStr = formatDateTime(start);
 
     final offline = settings.activeOffline;
     final TileLayer baseLayer;

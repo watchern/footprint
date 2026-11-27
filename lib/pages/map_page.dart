@@ -208,6 +208,11 @@ class _MapPageState extends State<MapPage> {
     } else if (curPoint != null) {
       center = curPoint;
     }
+    center ??= const LatLng(39.909, 116.397);
+
+    // 初始缩放：使比例尺读数为 2 公里
+    final initialZoom =
+        zoomForScaleMetric(2000, center.latitude, kScaleBarMaxWidth);
 
     final markers = <Marker>[];
     final circles = <CircleMarker>[];
@@ -289,8 +294,8 @@ class _MapPageState extends State<MapPage> {
         FlutterMap(
           mapController: _mapController,
           options: MapOptions(
-            initialCenter: center ?? const LatLng(39.909, 116.397),
-            initialZoom: center == null ? 4 : 14,
+            initialCenter: center,
+            initialZoom: initialZoom,
           ),
           children: [
             baseLayer,
@@ -403,16 +408,17 @@ class _RecordBar extends StatelessWidget {
                 ]),
               ),
               const SizedBox(width: 4),
-              FilledButton.icon(
+              // 用普通 FilledButton + 单一子组件，保证图标在圆内居中
+              FilledButton(
                 style: FilledButton.styleFrom(
                   backgroundColor: Theme.of(context).colorScheme.error,
                   foregroundColor: Colors.white,
                   shape: const CircleBorder(),
                   padding: const EdgeInsets.all(12),
+                  minimumSize: const Size(46, 46),
                 ),
                 onPressed: onToggle,
-                icon: const Icon(Icons.stop, size: 22),
-                label: const SizedBox.shrink(),
+                child: const Icon(Icons.stop, size: 22),
               ),
             ])
           : Row(mainAxisSize: MainAxisSize.min, children: [

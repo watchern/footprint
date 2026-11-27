@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as p;
 import 'package:sqflite/sqflite.dart';
 import 'package:uuid/uuid.dart';
@@ -7,6 +8,13 @@ import 'models.dart';
 /// 本地 SQLite 数据库。所有数据只存在用户设备上。
 class AppDb {
   static Database? _db;
+
+  /// 仅供测试使用：重置数据库连接
+  @visibleForTesting
+  static Future<void> resetForTest() async {
+    await _db?.close();
+    _db = null;
+  }
 
   static Future<Database> _open() async {
     if (_db != null) return _db!;
