@@ -52,9 +52,11 @@ jobs:
         run: |
           set -o pipefail
           flutter build apk --release 2>&1 | tee build.log
-          # 产物重命名为带版本号的文件名，便于用户识别与管理
+          # 产物重命名为带版本号的 ASCII 文件名：
+          # 中文文件名在 gh CLI / softprops 的 glob 解析中会被吃掉前缀，
+          # ASCII 名可确保 Release 资产名正确带版本号。
           cp build/app/outputs/flutter-apk/app-release.apk \
-             "build/app/outputs/flutter-apk/本地足迹-v${{ steps.version.outputs.version }}.apk"
+             "build/app/outputs/flutter-apk/footprints-v${{ steps.version.outputs.version }}.apk"
 
       - name: Report failure details
         if: failure()
@@ -75,8 +77,8 @@ jobs:
         if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: 本地足迹-v${{ steps.version.outputs.version }}
-          path: build/app/outputs/flutter-apk/本地足迹-v${{ steps.version.outputs.version }}.apk
+          name: footprints-v${{ steps.version.outputs.version }}
+          path: build/app/outputs/flutter-apk/footprints-v${{ steps.version.outputs.version }}.apk
 
       - name: Upload build log
         if: failure()
@@ -93,35 +95,25 @@ jobs:
           TAG: ${{ github.ref_name }}
         run: |
           set -e
-          ASSET="本地足迹-v${VERSION}.apk"
-          SRC="build/app/outputs/flutter-apk/app-release.apk"
+          # ASCII 资产名，避免中文在 gh CLI/glob 解析中丢失
+          ASSET="footprints-v${VERSION}.apk"
+          SRC="build/app/outputs/flutter-apk/${ASSET}"
+          ls -l "$SRC"
           echo "::notice title=发布目标::TAG=$TAG ASSET=$ASSET"
 
-          NOTES="安卓 APK 自动发布。数据仅存本地设备，无注册无云端；轨迹以 WGS-84 存储，支持 OSM 镜像与 MBTiles 离线包。"
+          NOTES="本地足迹 $TAG — 安卓 APK。数据仅存本地设备，无注册无云端；轨迹以 WGS-84 存储，支持 OSM 镜像与 MBTiles 离线包。"
 
-          # 先创建/复用 Release
-          if gh release view "$TAG" >/dev/null 2>&1; then
-            echo "::notice::release exists"
-          else
-            gh release create "$TAG" --title "本地足迹 $TAG" --notes "$NOTES"
+          # 先创建；若 tag 上已有 release 则回退为 upload，并清理旧资产保证幂等
+          if gh release create "$TAG" "$SRC" \
+               --title "本地足迹 $TAG" --notes "$NOTES" 2>create.err; then
             echo "::notice::release created"
+          else
+            echo "::notice::release exists, cleanup and upload"
+            cat create.err
+            for id in $(gh release view "$TAG" --json assets --jq '.assets[].id'); do
+              gh api -X DELETE "repos/${{ github.repository }}/releases/assets/$id" >/dev/null
+            done
+            gh release upload "$TAG" "$SRC" --clobber
           fi
-
-          # 删除已有资产（保证幂等）
-          for id in $(gh release view "$TAG" --json assets --jq '.assets[].id'); do
-            gh api -X DELETE "repos/${{ github.repository }}/releases/assets/$id" >/dev/null
-          done
-
-          # 用 REST API 上传，资产名通过 URL 编码的查询参数指定，
-          # 彻底绕开 gh CLI / softprops 对中文文件名的 glob 解析 bug。
-          RELEASE_ID=$(gh release view "$TAG" --json id --jq '.id')
-          ASSET_ENC=$(python3 -c 'import urllib.parse,sys; print(urllib.parse.quote(sys.argv[1]))' "$ASSET")
-          curl -sS -X POST \
-            -H "Authorization: Bearer $GH_TOKEN" \
-            -H "Content-Type: application/vnd.android.package-archive" \
-            --data-binary "@${SRC}" \
-            "https://uploads.github.com/repos/${{ github.repository }}/releases/${RELEASE_ID}/assets?name=${ASSET_ENC}" \
-            > upload_result.json
-          echo "::notice title=上传结果::$(python3 -c 'import json; d=json.load(open("upload_result.json")); print(d.get("name", d.get("message","unknown")))')"
 
           echo "::notice title=发布确认::$(gh release view "$TAG" --json assets --jq '[.assets[].name] | join(",")')"
