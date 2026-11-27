@@ -93,23 +93,23 @@ jobs:
           TAG: ${{ github.ref_name }}
         run: |
           set -e
-          SRC="build/app/outputs/flutter-apk/app-release.apk"
+          # 直接用带版本号的中文文件名作为源文件：gh 上传时资产名取源文件 basename，
+          # 不能用 file#label 语法（# 后面只是显示 label，不是文件名）。
           ASSET="本地足迹-v${VERSION}.apk"
-
-          # 诊断输出到 annotation（匿名可通过 API 读取）
+          SRC="build/app/outputs/flutter-apk/${ASSET}"
+          ls -l "$SRC"
           echo "::notice title=发布目标::TAG=$TAG ASSET=$ASSET"
 
           NOTES="安卓 APK 自动发布。数据仅存本地设备，无注册无云端；轨迹以 WGS-84 存储，支持 OSM 镜像与 MBTiles 离线包。"
 
-          # 用 源文件#资产名 语法指定中文资产名，避免 glob 处理中文路径丢字符。
           # 先尝试 create；若 tag 上已有 release 则回退为 upload。
-          if gh release create "$TAG" "${SRC}#${ASSET}" \
+          if gh release create "$TAG" "$SRC" \
                --title "本地足迹 $TAG" --notes "$NOTES" 2>create.err; then
             echo "::notice::release created"
           else
             echo "::notice::release exists, fallback to upload"
             cat create.err
-            gh release upload "$TAG" "${SRC}#${ASSET}" --clobber
+            gh release upload "$TAG" "$SRC" --clobber
           fi
 
           # 发布后确认资产名（写入 annotation 便于核验）
