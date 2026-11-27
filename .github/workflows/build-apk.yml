@@ -56,7 +56,7 @@ jobs:
           # 中文文件名在 gh CLI / softprops 的 glob 解析中会被吃掉前缀，
           # ASCII 名可确保 Release 资产名正确带版本号。
           cp build/app/outputs/flutter-apk/app-release.apk \
-             "build/app/outputs/flutter-apk/footprints-v${{ steps.version.outputs.version }}.apk"
+             "build/app/outputs/flutter-apk/foot_print_v${{ steps.version.outputs.version }}.apk"
 
       - name: Report failure details
         if: failure()
@@ -77,8 +77,8 @@ jobs:
         if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: footprints-v${{ steps.version.outputs.version }}
-          path: build/app/outputs/flutter-apk/footprints-v${{ steps.version.outputs.version }}.apk
+          name: foot_print_v${{ steps.version.outputs.version }}
+          path: build/app/outputs/flutter-apk/foot_print_v${{ steps.version.outputs.version }}.apk
 
       - name: Upload build log
         if: failure()
@@ -96,7 +96,7 @@ jobs:
         run: |
           set -e
           # ASCII 资产名，避免中文在 gh CLI/glob 解析中丢失
-          ASSET="footprints-v${VERSION}.apk"
+          ASSET="foot_print_v${VERSION}.apk"
           SRC="build/app/outputs/flutter-apk/${ASSET}"
           ls -l "$SRC"
           echo "::notice title=发布目标::TAG=$TAG ASSET=$ASSET"
