@@ -93,24 +93,35 @@ jobs:
           TAG: ${{ github.ref_name }}
         run: |
           set -e
-          # 直接用带版本号的中文文件名作为源文件：gh 上传时资产名取源文件 basename，
-          # 不能用 file#label 语法（# 后面只是显示 label，不是文件名）。
           ASSET="本地足迹-v${VERSION}.apk"
-          SRC="build/app/outputs/flutter-apk/${ASSET}"
-          ls -l "$SRC"
+          SRC="build/app/outputs/flutter-apk/app-release.apk"
           echo "::notice title=发布目标::TAG=$TAG ASSET=$ASSET"
 
           NOTES="安卓 APK 自动发布。数据仅存本地设备，无注册无云端；轨迹以 WGS-84 存储，支持 OSM 镜像与 MBTiles 离线包。"
 
-          # 先尝试 create；若 tag 上已有 release 则回退为 upload。
-          if gh release create "$TAG" "$SRC" \
-               --title "本地足迹 $TAG" --notes "$NOTES" 2>create.err; then
-            echo "::notice::release created"
+          # 先创建/复用 Release
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "::notice::release exists"
           else
-            echo "::notice::release exists, fallback to upload"
-            cat create.err
-            gh release upload "$TAG" "$SRC" --clobber
+            gh release create "$TAG" --title "本地足迹 $TAG" --notes "$NOTES"
+            echo "::notice::release created"
           fi
 
-          # 发布后确认资产名（写入 annotation 便于核验）
-          echo "::notice title=发布确认::$(gh release view "$TAG" --json name,assets --jq '.name + " | " + ([.assets[].name] | join(","))')"
+          # 删除已有资产（保证幂等）
+          for id in $(gh release view "$TAG" --json assets --jq '.assets[].id'); do
+            gh api -X DELETE "repos/${{ github.repository }}/releases/assets/$id" >/dev/null
+          done
+
+          # 用 REST API 上传，资产名通过 URL 编码的查询参数指定，
+          # 彻底绕开 gh CLI / softprops 对中文文件名的 glob 解析 bug。
+          RELEASE_ID=$(gh release view "$TAG" --json id --jq '.id')
+          ASSET_ENC=$(python3 -c 'import urllib.parse,sys; print(urllib.parse.quote(sys.argv[1]))' "$ASSET")
+          curl -sS -X POST \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H "Content-Type: application/vnd.android.package-archive" \
+            --data-binary "@${SRC}" \
+            "https://uploads.github.com/repos/${{ github.repository }}/releases/${RELEASE_ID}/assets?name=${ASSET_ENC}" \
+            > upload_result.json
+          echo "::notice title=上传结果::$(python3 -c 'import json; d=json.load(open("upload_result.json")); print(d.get("name", d.get("message","unknown")))')"
+
+          echo "::notice title=发布确认::$(gh release view "$TAG" --json assets --jq '[.assets[].name] | join(",")')"
