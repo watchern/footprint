@@ -327,6 +327,11 @@ class _MapPageState extends State<MapPage> {
           options: MapOptions(
             initialCenter: center,
             initialZoom: initialZoom,
+            // 禁用旋转：栅格底图的文字烘焙在瓦片图片中，旋转地图时文字会一起倒转
+            // 无法阅读。方向标已用罗盘指示设备朝向，无需旋转地图本身。
+            interactionOptions: const InteractionOptions(
+              flags: InteractiveFlag.all & ~InteractiveFlag.rotate,
+            ),
           ),
           children: [
             baseLayer,

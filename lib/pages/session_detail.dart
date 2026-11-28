@@ -113,6 +113,10 @@ class _SessionDetailState extends State<SessionDetail> {
                   options: MapOptions(
                     initialCenter: gcj[gcj.length ~/ 2],
                     initialZoom: 15,
+                    // 栅格瓦片文字随旋转会倒转，禁用旋转手势
+                    interactionOptions: const InteractionOptions(
+                      flags: InteractiveFlag.all & ~InteractiveFlag.rotate,
+                    ),
                   ),
                   children: [
                     baseLayer,

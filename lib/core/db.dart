@@ -119,6 +119,22 @@ class AppDb {
     );
   }
 
+  /// 批量导入一条完整轨迹（会话 + 点），每条轨迹一个事务
+  static Future<void> insertTrack(
+    Session session,
+    List<TrackPoint> points,
+  ) async {
+    final db = await _open();
+    await db.transaction<void>((txn) async {
+      final sid = await txn.insert('sessions', session.toMap());
+      final batch = txn.batch();
+      for (final pt in points) {
+        batch.insert('points', pt.toMap(sid));
+      }
+      await batch.commit(noResult: true);
+    });
+  }
+
   /// 汇总统计：总里程、总时长、记录次数、记录天数
   static Future<Map<String, num>> totals() async {
     final db = await _open();

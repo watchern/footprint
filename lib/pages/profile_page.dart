@@ -6,6 +6,8 @@ import '../core/app_nav.dart';
 import '../core/db.dart';
 import '../core/map_settings.dart';
 import '../core/tracker.dart';
+import 'about_page.dart';
+import 'data_backup_page.dart';
 import 'map_settings_page.dart';
 
 class ProfilePage extends StatefulWidget {
@@ -145,27 +147,31 @@ class _ProfilePageState extends State<ProfilePage> {
         const SizedBox(height: 16),
         Card(
           elevation: 0,
-          color: Theme.of(context).colorScheme.surfaceContainerLowest,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          child: const Padding(
-            padding: EdgeInsets.all(20),
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Row(children: [
-                Icon(Icons.lock_outline, size: 18),
-                SizedBox(width: 8),
-                Text('隐私说明', style: TextStyle(fontWeight: FontWeight.w500)),
-              ]),
-              SizedBox(height: 10),
-              Text(
-                '本应用为完全本地化应用：\n\n'
-                '· 打开即自动生成本地账号，无需注册登录\n'
-                '· 所有轨迹、统计数据仅存储在设备本地数据库中\n'
-                '· 不上传任何数据，没有云端备份与好友共享\n'
-                '· 地图底图仅用于显示，不含你的任何个人信息\n\n'
-                '卸载应用或清除应用数据将永久删除全部足迹。',
-                style: TextStyle(fontSize: 13, height: 1.7),
-              ),
-            ]),
+          shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+              side: BorderSide(color: Theme.of(context).dividerColor.withValues(alpha: 0.3))),
+          child: ListTile(
+            leading: const Icon(Icons.backup_outlined),
+            title: const Text('数据备份与恢复', style: TextStyle(fontWeight: FontWeight.w500)),
+            subtitle: const Text('导出 / 导入 GPX、CSV 文件', style: TextStyle(fontSize: 12)),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => Navigator.push(context,
+                MaterialPageRoute(builder: (_) => const DataBackupPage())),
+          ),
+        ),
+        const SizedBox(height: 16),
+        Card(
+          elevation: 0,
+          shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+              side: BorderSide(color: Theme.of(context).dividerColor.withValues(alpha: 0.3))),
+          child: ListTile(
+            leading: const Icon(Icons.info_outline),
+            title: const Text('关于我们', style: TextStyle(fontWeight: FontWeight.w500)),
+            subtitle: const Text('版本信息与隐私说明', style: TextStyle(fontSize: 12)),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => Navigator.push(context,
+                MaterialPageRoute(builder: (_) => const AboutPage())),
           ),
         ),
       ]),
