@@ -49,6 +49,10 @@ class TileSource {
   /// 是否推荐（国内网络直连友好）
   final bool recommended;
 
+  /// 该源可用的最大缩放级别。超过后瓦片请求返回空白/透明图。
+  /// 实测：高德矢量 z=19 起返回 179 字节空白瓦片；卫星影像 z=19 仍正常。
+  final int maxZoom;
+
   /// 备注说明
   final String? note;
 
@@ -61,6 +65,7 @@ class TileSource {
     required this.attribution,
     this.requiresKey = false,
     this.recommended = false,
+    this.maxZoom = 18,
     this.note,
   });
 
@@ -79,6 +84,7 @@ class TileSource {
       coordSystem: CoordSystem.gcj02,
       attribution: '© 高德地图',
       recommended: true,
+      maxZoom: 18,
       note: '国内直连流畅，无需 Key，坐标为 GCJ-02',
     ),
     TileSource(
@@ -89,6 +95,7 @@ class TileSource {
       subdomains: ['1', '2', '3', '4'],
       coordSystem: CoordSystem.gcj02,
       attribution: '© 高德地图',
+      maxZoom: 19,
       note: '卫星影像 + 路网标注',
     ),
     TileSource(
@@ -99,6 +106,7 @@ class TileSource {
       coordSystem: CoordSystem.wgs84,
       attribution: '© 天地图',
       requiresKey: true,
+      maxZoom: 18,
       note: '国家基础地理信息中心，坐标为 CGCS2000（近似 WGS-84）',
     ),
     TileSource(
@@ -108,6 +116,7 @@ class TileSource {
       subdomains: [],
       coordSystem: CoordSystem.wgs84,
       attribution: '© OpenStreetMap contributors',
+      maxZoom: 19,
       note: '国内访问通常不稳定，建议改用镜像地址或在设置中填写自定义镜像',
     ),
   ];
@@ -126,7 +135,7 @@ class TileSource {
       additionalOptions: requiresKey && keyValue != null && keyValue.isNotEmpty
           ? {'key': keyValue}
           : const <String, String>{},
-      maxNativeZoom: 19,
+      maxNativeZoom: maxZoom,
     );
   }
 }

@@ -7,6 +7,7 @@ import '../core/db.dart';
 import '../core/map_settings.dart';
 import '../core/models.dart';
 import '../core/mbtiles.dart';
+import '../core/scale.dart';
 import 'map_page.dart';
 
 class SessionDetail extends StatefulWidget {
@@ -70,7 +71,7 @@ class _SessionDetailState extends State<SessionDetail> {
           maxZoom: offline.maxZoom,
         ),
         userAgentPackageName: 'local.local_footprints',
-        maxNativeZoom: 19,
+        maxNativeZoom: offline.maxZoom,
       );
     } else {
       baseLayer = settings.effectiveSource.toTileLayer(
@@ -113,6 +114,11 @@ class _SessionDetailState extends State<SessionDetail> {
                   options: MapOptions(
                     initialCenter: gcj[gcj.length ~/ 2],
                     initialZoom: 15,
+                    maxZoom: offlineZoomLimit(
+                      offline?.maxZoom,
+                      settings.effectiveSource.maxZoom,
+                    ),
+                    minZoom: 3,
                     // 栅格瓦片文字随旋转会倒转，禁用旋转手势
                     interactionOptions: const InteractionOptions(
                       flags: InteractiveFlag.all & ~InteractiveFlag.rotate,

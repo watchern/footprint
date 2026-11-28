@@ -155,7 +155,13 @@ class _MapPageState extends State<MapPage> {
     final sys = context.read<MapSettings>().coordSystem;
     final disp = sys.fromWgs84(p.latitude, p.longitude);
     final target = LatLng(disp[0], disp[1]);
-    final zoom = zoomForScaleMetric(targetScaleMeters, disp[0], kScaleBarMaxWidth);
+    final settings = context.read<MapSettings>();
+    final maxZoom = offlineZoomLimit(
+      settings.activeOffline?.maxZoom,
+      settings.effectiveSource.maxZoom,
+    );
+    final zoom = zoomForScaleMetric(targetScaleMeters, disp[0], kScaleBarMaxWidth)
+        .clamp(0.0, maxZoom);
     _mapController.move(target, zoom);
 
     // 精度过差时给出可操作的提示（Android 12+ 可能是「大致位置」授权）
@@ -241,9 +247,16 @@ class _MapPageState extends State<MapPage> {
     }
     center ??= const LatLng(39.909, 116.397);
 
-    // 初始缩放：使比例尺读数为 2 公里
-    final initialZoom =
-        zoomForScaleMetric(2000, center.latitude, kScaleBarMaxWidth);
+    // 当前底图（离线包优先）
+    final offline = settings.activeOffline;
+    // 最大缩放：跟随当前底图源。超过此级别瓦片返回空白，必须限制。
+    final maxZoom = offlineZoomLimit(
+      offline?.maxZoom,
+      settings.effectiveSource.maxZoom,
+    );
+    // 初始缩放：使比例尺读数为 2 公里；不得超过底图最大级别
+    final initialZoom = zoomForScaleMetric(2000, center.latitude, kScaleBarMaxWidth)
+        .clamp(0.0, maxZoom);
 
     final markers = <Marker>[];
     final circles = <CircleMarker>[];
@@ -274,7 +287,6 @@ class _MapPageState extends State<MapPage> {
     }
 
     // 底图：离线包优先，否则在线源
-    final offline = settings.activeOffline;
     final TileLayer baseLayer;
     if (offline != null) {
       _offlineReader ??= MbTilesReader(offline.path);
@@ -286,7 +298,7 @@ class _MapPageState extends State<MapPage> {
           maxZoom: offline.maxZoom,
         ),
         userAgentPackageName: 'local.local_footprints',
-        maxNativeZoom: 19,
+        maxNativeZoom: offline.maxZoom,
       );
     } else {
       baseLayer = settings.effectiveSource.toTileLayer(
@@ -327,6 +339,8 @@ class _MapPageState extends State<MapPage> {
           options: MapOptions(
             initialCenter: center,
             initialZoom: initialZoom,
+            maxZoom: maxZoom,
+            minZoom: 3,
             // 禁用旋转：栅格底图的文字烘焙在瓦片图片中，旋转地图时文字会一起倒转
             // 无法阅读。方向标已用罗盘指示设备朝向，无需旋转地图本身。
             interactionOptions: const InteractionOptions(

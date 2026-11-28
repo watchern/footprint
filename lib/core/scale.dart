@@ -13,6 +13,17 @@ import 'dart:math' as math;
 /// 确保定位后比例尺读数恰好为 500 米。
 const double kScaleBarMaxWidth = 90;
 
+/// 决定地图最大缩放级别。
+///
+/// 离线包有自己明确的瓦片级别范围，优先采用；否则用在线源声明的上限。
+/// 限制 maxZoom 是必要的：栅格瓦片超过源的最大级别后会返回空白图。
+double offlineZoomLimit(int? offlineMaxZoom, int onlineMaxZoom) {
+  if (offlineMaxZoom != null && offlineMaxZoom > 0) {
+    return offlineMaxZoom.toDouble();
+  }
+  return onlineMaxZoom.toDouble();
+}
+
 /// 海拔文本：保留整数米。GPS 高度通常为椭球高，精度有限，取整更诚实。
 String formatAltitude(double? meters) {
   if (meters == null || !meters.isFinite) return '当前海拔 -- 米';

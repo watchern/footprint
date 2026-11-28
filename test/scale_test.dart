@@ -2,6 +2,28 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:local_footprints/core/scale.dart';
 
 void main() {
+  group('最大缩放限制', () {
+    test('离线包有自己的级别范围时优先采用', () {
+      expect(offlineZoomLimit(16, 19), 16);
+      expect(offlineZoomLimit(14, 18), 14);
+    });
+
+    test('无离线包时采用在线源上限', () {
+      expect(offlineZoomLimit(null, 18), 18);
+      expect(offlineZoomLimit(0, 19), 19);
+    });
+
+    test('高德矢量上限 18 低于测绘级别时钳制生效', () {
+      // 500m 的反解 zoom 远低于 18，不受影响
+      final z500 = zoomForScaleMetric(500, 39.9, 90);
+      expect(z500.clamp(0.0, 18.0), z500);
+      // 20m 反解约 19，会被 18 钳制（避免空白瓦片）
+      final z20 = zoomForScaleMetric(20, 39.9, 90);
+      expect(z20, greaterThan(18));
+      expect(z20.clamp(0.0, 18.0), 18);
+    });
+  });
+
   group('海拔文本', () {
     test('正常海拔取整显示', () {
       expect(formatAltitude(52.6), '当前海拔 53 米');
