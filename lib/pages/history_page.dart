@@ -102,12 +102,12 @@ class _HistoryPageState extends State<HistoryPage> {
                                   width: 10,
                                   height: 44,
                                   decoration: BoxDecoration(
-                                    color: Color(typeColors[s.type] ?? 0xFF185FA5),
+                                    color: Color(typeColorOf(s.type)),
                                     borderRadius: BorderRadius.circular(5),
                                   ),
                                 ),
                                 title: Row(children: [
-                                  Text(typeNames[s.type] ?? s.type,
+                                  Text(typeNameOf(s.type),
                                       style: const TextStyle(fontWeight: FontWeight.w500)),
                                   const Spacer(),
                                   Text(

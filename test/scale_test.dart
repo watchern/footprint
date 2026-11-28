@@ -2,6 +2,19 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:local_footprints/core/scale.dart';
 
 void main() {
+  group('海拔文本', () {
+    test('正常海拔取整显示', () {
+      expect(formatAltitude(52.6), '当前海拔 53 米');
+      expect(formatAltitude(0), '当前海拔 0 米');
+      expect(formatAltitude(-3.4), '当前海拔 -3 米');
+    });
+
+    test('无定位数据时显示占位', () {
+      expect(formatAltitude(null), '当前海拔 -- 米');
+      expect(formatAltitude(double.nan), '当前海拔 -- 米');
+    });
+  });
+
   group('米/像素换算', () {
     test('赤道 z=0 时每像素约 156543 米', () {
       expect(metersPerPixel(0, 0), closeTo(156543.03392804097, 0.001));

@@ -54,7 +54,7 @@ class _SessionDetailState extends State<SessionDetail> {
     final settings = context.watch<MapSettings>();
     final sys = settings.coordSystem;
     final gcj = toDisplay(_points, sys);
-    final color = Color(typeColors[s.type] ?? 0xFF185FA5);
+    final color = Color(typeColorOf(s.type));
     final start = DateTime.fromMillisecondsSinceEpoch(s.startedAt);
     final startStr = formatDateTime(start);
 
@@ -104,7 +104,7 @@ class _SessionDetailState extends State<SessionDetail> {
     }
 
     return Scaffold(
-      appBar: AppBar(title: Text('${typeNames[s.type]}详情')),
+      appBar: AppBar(title: Text('${typeNameOf(s.type)}详情')),
       body: Column(children: [
         Expanded(
           flex: 3,

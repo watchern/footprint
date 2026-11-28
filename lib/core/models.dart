@@ -85,18 +85,28 @@ class TrackPoint {
       );
 }
 
+/// 出行类型：步行与跑步已合并为「行走」。
 const Map<String, String> typeNames = {
-  'walk': '步行',
-  'run': '跑步',
+  'walk': '行走',
   'bike': '骑行',
   'drive': '驾车',
 };
 
 const Map<String, int> typeColors = {
   'walk': 0xFF3B6D11, // 绿
-  'run': 0xFFD85A30, // 橙红
   'bike': 0xFF185FA5, // 蓝
   'drive': 0xFF854F0B, // 棕金
 };
+
+/// 历史数据兼容：早期版本把「行走」拆成 walk/run 两种，
+/// 现在统一合并。旧 run 记录不迁移数据，仅在读取时归一化为 walk。
+String normalizeType(String raw) => raw == 'run' ? 'walk' : raw;
+
+/// 取显示名（自动兼容历史类型）
+String typeNameOf(String raw) => typeNames[normalizeType(raw)] ?? raw;
+
+/// 取显示颜色（自动兼容历史类型）
+int typeColorOf(String raw) =>
+    typeColors[normalizeType(raw)] ?? 0xFF185FA5;
 
 double kmh(double mps) => mps * 3.6;

@@ -180,7 +180,7 @@ class _MapPageState extends State<MapPage> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
             content: Text(session != null
-                ? '已保存：${typeNames[session.type]} '
+                ? '已保存：${typeNameOf(session.type)} '
                     '${(session.distance / 1000).toStringAsFixed(2)} km'
                 : '有效轨迹点不足，本次记录未保存')),
       );
@@ -222,7 +222,7 @@ class _MapPageState extends State<MapPage> {
       polylines.add(Polyline(
         points: pts,
         strokeWidth: 4,
-        color: Color(typeColors[s.type] ?? 0xFF185FA5),
+        color: Color(typeColorOf(s.type)),
       ));
     }
 
@@ -302,7 +302,7 @@ class _MapPageState extends State<MapPage> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('我的足迹'),
+        title: const Text('我的轨迹'),
         actions: [
           IconButton(
               icon: const Icon(Icons.fit_screen),
@@ -339,6 +339,13 @@ class _MapPageState extends State<MapPage> {
               attribution: attribution,
             ),
           ],
+        ),
+
+        // 左上角：当前海拔
+        Positioned(
+          top: 12,
+          left: 12,
+          child: _AltitudeBadge(altitude: location.position?.altitude),
         ),
 
         // 右下角：定位到当前位置
@@ -474,6 +481,44 @@ class _RecordBar extends StatelessWidget {
                 child: const Icon(Icons.play_arrow),
               ),
             ]),
+    );
+  }
+}
+
+/// 左上角海拔指示：半透明卡片，避免遮挡地图但保持可读。
+class _AltitudeBadge extends StatelessWidget {
+  final double? altitude;
+
+  const _AltitudeBadge({this.altitude});
+
+  @override
+  Widget build(BuildContext context) {
+    final color = Theme.of(context).colorScheme;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: color.surface.withValues(alpha: 0.9),
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.12),
+            blurRadius: 6,
+            offset: const Offset(0, 1),
+          ),
+        ],
+      ),
+      child: Row(mainAxisSize: MainAxisSize.min, children: [
+        Icon(Icons.terrain_outlined, size: 15, color: color.primary),
+        const SizedBox(width: 5),
+        Text(
+          formatAltitude(altitude),
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w500,
+            color: color.onSurface,
+          ),
+        ),
+      ]),
     );
   }
 }

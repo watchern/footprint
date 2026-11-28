@@ -81,7 +81,7 @@ class _ProfilePageState extends State<ProfilePage> {
               side: BorderSide(color: Theme.of(context).dividerColor.withValues(alpha: 0.3))),
           child: InkWell(
             borderRadius: BorderRadius.circular(16),
-            onTap: () => context.read<AppNav>().goTo(2),
+            onTap: () => context.read<AppNav>().goTo(AppNav.tabHistory),
             child: Padding(
               padding: const EdgeInsets.all(20),
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [

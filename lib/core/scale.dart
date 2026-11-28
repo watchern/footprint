@@ -13,6 +13,12 @@ import 'dart:math' as math;
 /// 确保定位后比例尺读数恰好为 500 米。
 const double kScaleBarMaxWidth = 90;
 
+/// 海拔文本：保留整数米。GPS 高度通常为椭球高，精度有限，取整更诚实。
+String formatAltitude(double? meters) {
+  if (meters == null || !meters.isFinite) return '当前海拔 -- 米';
+  return '当前海拔 ${meters.round()} 米';
+}
+
 /// 指定缩放级别与纬度下，每像素代表的米数。
 double metersPerPixel(double zoom, double latitude) {
   final latRad = latitude * math.pi / 180.0;

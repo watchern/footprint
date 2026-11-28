@@ -10,7 +10,6 @@ import 'core/tracker.dart';
 import 'pages/history_page.dart';
 import 'pages/map_page.dart';
 import 'pages/profile_page.dart';
-import 'pages/record_page.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -63,14 +62,13 @@ class _HomeShellState extends State<HomeShell> {
     return Scaffold(
       body: IndexedStack(
         index: nav.index,
-        children: const [MapPage(), RecordPage(), HistoryPage(), ProfilePage()],
+        children: const [MapPage(), HistoryPage(), ProfilePage()],
       ),
       bottomNavigationBar: NavigationBar(
         selectedIndex: nav.index,
         onDestinationSelected: nav.goTo,
         destinations: const [
-          NavigationDestination(icon: Icon(Icons.map_outlined), selectedIcon: Icon(Icons.map), label: '足迹'),
-          NavigationDestination(icon: Icon(Icons.play_circle_outline), selectedIcon: Icon(Icons.play_circle), label: '记录'),
+          NavigationDestination(icon: Icon(Icons.map_outlined), selectedIcon: Icon(Icons.map), label: '轨迹'),
           NavigationDestination(icon: Icon(Icons.timeline_outlined), selectedIcon: Icon(Icons.timeline), label: '时间轴'),
           NavigationDestination(icon: Icon(Icons.person_outline), selectedIcon: Icon(Icons.person), label: '我的'),
         ],
